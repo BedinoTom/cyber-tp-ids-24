@@ -1,0 +1,85 @@
+---
+- name: "Vérifie si snort est installé"
+  package_facts:
+    manager: "auto"
+
+- name: Installer les paquets snort
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  ignore_errors: true
+  loop:
+    - snort
+  when: "('snort' not in ansible_facts.packages)"
+
+- name: Renommer le script de post-installation de Snort pour éviter les erreurs
+  ansible.builtin.command:
+    cmd: mv /var/lib/dpkg/info/snort.postinst /var/lib/dpkg/info/snort.postinst.bak
+  become: true
+
+- name: Forcer la configuration de Snort avec dpkg
+  ansible.builtin.command:
+    cmd: dpkg --configure -a
+  become: true
+
+- name: Copier le fichier local.rules
+  template:
+    src: ../templates/local.rules.j2
+    dest: /etc/snort/rules/local.rules
+
+- name: Copier le fichier snort.conf
+  template:
+    src: ../templates/snort.conf.j2
+    dest: /etc/snort/snort.conf
+
+- name: Copier le fichier snort.debian.conf
+  template:
+    src: ../templates/snort.debian.conf.j2
+    dest: /etc/snort/snort.debian.conf
+
+- name: Stop snort
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - stop
+      - snort
+
+- name: Kill all Snort processes
+  ansible.builtin.shell: "ps aux | grep snort | grep -v grep | awk '{print $2}' | xargs kill -9"
+  ignore_errors: true
+  register: kill_snort_output
+
+- name: Display result of Snort kill task
+  ansible.builtin.debug:
+    var: kill_snort_output.stdout
+
+- name: Find Snort PID files
+  ansible.builtin.find:
+    paths: "/run/snort"
+    patterns: "snort_*"
+  register: snort_pid_files
+
+- name: Remove Snort PID files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ snort_pid_files.files }}"
+
+- name: Recreate Snort PID directory
+  ansible.builtin.file:
+    path: "/run/snort"
+    state: directory
+    mode: "0755"
+
+- name: Copier le fichier de service alert-snort
+  template:
+    src: ../templates/alert-snort.service.j2
+    dest: /etc/systemd/system/alert-snort.service
+
+- name: Démarre alert-snort
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - start
+      - alert-snort

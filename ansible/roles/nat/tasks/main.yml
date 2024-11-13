@@ -1,0 +1,9 @@
+---
+- name: Envoi du netplan
+  copy:
+    src: ../templates/50-cloud-init.yaml
+    dest: /etc/netplan/50-cloud-init.yaml
+- name: Génération du netplan
+  command: netplan generate
+- name: Application du netplan
+  command: netplan apply

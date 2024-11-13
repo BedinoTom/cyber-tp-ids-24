@@ -1,0 +1,70 @@
+---
+- name: "Vérifie si apache2 et  easy-rsa sont installé"
+  package_facts:
+    manager: "auto"
+- name: Installer les paquets apache2 et easy-rsa
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - apache2
+    - easy-rsa
+  when: "('apache2' not in ansible_facts.packages) or ('easy-rsa' not in ansible_facts.packages)"
+
+- name: Ajouter easy-rsa au $PATH.
+  copy:
+    dest: /etc/profile.d/custom-path.sh
+    content: 'PATH=$PATH:{{ easy_rsa_path }}'
+
+- name: Vérifie si le dossier d'autorité de certification existe
+  stat:
+    path: "{{ CA_PATH }}"
+  register: ca_path_register_name
+
+- name: Crée le dossier d'autorité de certicication
+  ansible.builtin.command:
+    argv:
+      - make-cadir
+      - "{{ CA_PATH }}"
+  when: "not ca_path_register_name.stat.exists"
+
+- name: Génère la certification (pki)
+  ansible.builtin.command:
+    chdir: "{{ CA_PATH }}"
+    argv:
+      - ./easyrsa
+      - init-pki
+  when: "not ca_path_register_name.stat.exists"
+
+- name: Génère la certification (ca)
+  ansible.builtin.command:
+    chdir: "{{ CA_PATH }}"
+    argv:
+      - ./easyrsa
+      - build-ca
+      - nopass
+    stdin: "{{ domain_root }}"
+  when: "not ca_path_register_name.stat.exists"
+
+- name: Génère la requête de certification (cr)
+  ansible.builtin.command:
+    chdir: "{{ CA_PATH }}"
+    argv:
+      - ./easyrsa
+      - gen-req
+      - "{{ domain_root }}"
+      - nopass
+    stdin: "{{ domain_root }}"
+  when: "not ca_path_register_name.stat.exists"
+
+- name: Génère la certification (ca)
+  ansible.builtin.command:
+    chdir: "{{ CA_PATH }}"
+    argv:
+      - ./easyrsa
+      - sign-req
+      - server 
+      - "{{ domain_root }}"
+    stdin: "yes"
+  when: "not ca_path_register_name.stat.exists"

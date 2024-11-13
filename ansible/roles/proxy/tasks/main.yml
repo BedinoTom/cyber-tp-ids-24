@@ -1,0 +1,25 @@
+- name: Ajoute les modules ssl et proxy
+  ansible.builtin.command:
+    argv:
+      - a2enmod
+      - ssl
+      - proxy
+      - proxy_http
+
+- name: Copier le fichier virtualhost
+  template:
+    src: ../templates/virtualhost.xml.j2
+    dest: /etc/apache2/sites-available/virtualhost.conf
+
+- name: Ajoute le fichier virtualhost
+  ansible.builtin.command:
+    argv:
+      - a2ensite
+      - virtualhost.conf
+
+- name: Rédemarre apache2
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - restart
+      - apache2

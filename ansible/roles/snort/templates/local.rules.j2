@@ -1,0 +1,9 @@
+# $Id: local.rules,v 1.11 2004/07/23 20:15:44 bmc Exp $
+# ----------------
+# LOCAL RULES
+# ----------------
+# This file intentionally does not come with signatures.  Put your local
+# additions here.
+alert tcp any any -> any 22 (msg:"Tentative de connexion SSH détectée"; sid:1000001; rev:1; classtype:misc-activity; priority:2; flags:S; logto:"ssh_connections.log";)
+alert tcp !192.168.56.1 any -> any 22 (msg:"Tentative de connexion SSH depuis une machine non autorisée"; sid:1000002; rev:1; classtype:unauthorized-access-attempt; priority:2; flags:S;)
+alert tcp any any -> any any (msg:"Tentative de scan XMAS"; sid:1000003; rev:1; flags:FUP; classtype:attempted-recon; priority:2;)

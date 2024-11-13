@@ -1,0 +1,168 @@
+---
+- name: "Vérifie si iptables et iptables-persistent sont installé"
+  package_facts:
+    manager: "auto"
+- name: Installer les paquets iptables et iptables-persistent
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - apt-utils
+    - iptables
+    - iptables-persistent
+  when: "('iptables' not in ansible_facts.packages) or ('iptables-persistent' not in ansible_facts.packages) or ('apt-utils' not in ansible_facts.packages)"
+- name: Ajouter une règle iptables pour accepter les paquets SSH
+  ansible.builtin.iptables:
+    table: filter
+    chain: INPUT
+    protocol: tcp
+    source: "{{ ip }}"
+    destination_port: 22
+    jump: ACCEPT
+  vars:
+    ip: 192.168.56.1
+
+- name: Ajouter une règle iptables pour accepter les requêtes SSH
+  ansible.builtin.iptables:
+    table: filter
+    chain: OUTPUT
+    protocol: tcp
+    source_port: 22
+    ctstate: RELATED,ESTABLISHED
+    match: conntrack
+    jump: ACCEPT
+
+- name: Drop INPUT OUTPUT et FORWARD sur la chaine filter
+  ansible.builtin.iptables:
+    table: filter
+    chain: "{{ item }}"
+    policy: DROP
+  loop:
+    - INPUT
+    - OUTPUT
+    - FORWARD
+
+- name: Ajouter une règle iptables pour accepter les requêtes UDP sur le port 53
+  ansible.builtin.iptables:
+    table: filter
+    chain: OUTPUT
+    protocol: udp
+    destination_port: 53
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les paquets UDP sur le port 53
+  ansible.builtin.iptables:
+    table: filter
+    chain: INPUT
+    protocol: udp
+    source_port: 53
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les requêtes ICMP
+  ansible.builtin.iptables:
+    table: filter
+    chain: OUTPUT
+    protocol: icmp
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les paquets ICMP
+  ansible.builtin.iptables:
+    table: filter
+    chain: INPUT
+    protocol: icmp
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les requêtes DHCP
+  ansible.builtin.iptables:
+    table: filter
+    chain: OUTPUT
+    protocol: udp
+    destination_port: "{{ item }}"
+    jump: ACCEPT
+  loop:
+    - 67
+    - 68
+
+- name: Ajouter une règle iptables pour accepter les paquets DHCP
+  ansible.builtin.iptables:
+    table: filter
+    chain: INPUT
+    protocol: udp
+    source_port: " {{ item }}"
+    destination_port: " {{ item }}"
+    jump: ACCEPT
+  loop:
+    - 67
+    - 68
+
+- name: Ajouter une règle iptables pour accepter les paquets internes
+  ansible.builtin.iptables:
+    table: filter
+    chain: INPUT
+    in_interface: lo
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les requêtes internes
+  ansible.builtin.iptables:
+    table: filter
+    chain: OUTPUT
+    out_interface: lo
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les paquets dockers
+  ansible.builtin.iptables:
+    table: filter
+    chain: INPUT
+    source: 172.17.0.0/12 
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les requêtes dockers
+  ansible.builtin.iptables:
+    table: filter
+    chain: OUTPUT
+    destination: 172.17.0.0/12
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les requêtes HTTP
+  ansible.builtin.iptables:
+    table: filter
+    chain: OUTPUT
+    protocol: tcp
+    destination_port: 80
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les paquets HTTP
+  ansible.builtin.iptables:
+    table: filter
+    chain: INPUT
+    protocol: tcp
+    source_port: 80
+    match: conntrack
+    ctstate: NEW,RELATED,ESTABLISHED
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les requêtes HTTPS
+  ansible.builtin.iptables:
+    table: filter
+    chain: OUTPUT
+    protocol: tcp
+    source_port: 443
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour accepter les paquets HTTPS
+  ansible.builtin.iptables:
+    table: filter
+    chain: INPUT
+    protocol: tcp
+    destination_port: 443
+    match: conntrack
+    ctstate: NEW,ESTABLISHED
+    jump: ACCEPT
+
+- name: Ajouter une règle iptables pour tracer les paquets
+  command: "iptables -t filter -I INPUT 1 -m state --state NEW -j LOG --log-prefix \"[IPTABLES]: \" --log-ip-options"
+
+- name: Sauvegarder les iptables
+  ansible.builtin.command:
+    cmd: iptables-save -f /etc/iptables/rules.v4

@@ -1,0 +1,12 @@
+[Unit]
+Description=XSS Server Demo
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=snort -A fast -q -u snort -g snort -c /etc/snort/snort.conf --pid-path /run/snort/ -i enp0s3
+ExecStop=pkill -INT -F /run/snort/snort_enp0s3.pid
+
+[Install]
+WantedBy=default.target

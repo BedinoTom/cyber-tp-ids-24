@@ -1,0 +1,24 @@
+---
+- name: "Vérifie si libapache2-mod-security2 est installé"
+  package_facts:
+    manager: "auto"
+- name: Installer les paquets libapache2-mod-security2
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - libapache2-mod-security2
+  when: "('libapache2-mod-security2' not in ansible_facts.packages)"
+
+- name: Copier le fichier modsecurity
+  template:
+    src: ../templates/modsecurity.conf.j2
+    dest: /etc/modsecurity/modsecurity.conf
+
+- name: Rédemarre apache2
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - restart
+      - apache2

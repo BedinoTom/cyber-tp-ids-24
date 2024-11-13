@@ -1,0 +1,17 @@
+---
+- hosts: ids_server
+  become: yes
+  vars:
+    ansible_become_pass: "poly"
+    domain_root: juicebox.polytech.com
+    easy_rsa_path: "/usr/share/easy-rsa"
+    CA_PATH: "/etc/certs"
+    CA_PASSWORD: "password"
+  roles:
+    - nat
+    - iptables
+    - gen_ca
+    - proxy
+    - waf
+    - snort
+    - fail2ban

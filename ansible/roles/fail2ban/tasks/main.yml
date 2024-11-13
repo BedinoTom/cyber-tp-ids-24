@@ -1,0 +1,31 @@
+---
+- name: "Vérifie si fail2ban est installé"
+  package_facts:
+    manager: "auto"
+
+- name: Installer les paquets fail2ban
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  ignore_errors: true
+  loop:
+    - fail2ban
+  when: "('fail2ban' not in ansible_facts.packages)"
+
+- name: Copier le fichier jail.conf
+  template:
+    src: ../templates/jail.conf.j2
+    dest: /etc/fail2ban/jail.conf
+
+- name: Copier le fichier modsec.conf
+  template:
+    src: ../templates/modsec.conf.j2
+    dest: /etc/fail2ban/filter.d/modsec.conf
+
+- name: Rédémarre fail2ban
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - restart
+      - fail2ban
